@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -10,6 +11,13 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "postgresql+asyncpg://app:devpassword@localhost:5432/chatbot_clinica"
+
+    @field_validator("database_url")
+    @classmethod
+    def ensure_async_driver(cls, v: str) -> str:
+        if v and v.startswith("postgresql://") and "+asyncpg" not in v:
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
