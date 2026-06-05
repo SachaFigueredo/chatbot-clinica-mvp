@@ -1,0 +1,59 @@
+context: |
+  SaaS chatbot for general medicine clinics. Multi-tenant.
+  Handles appointment scheduling, patient FAQs, general inquiries.
+  Python + web framework (to be decided: FastAPI / Django).
+  Initial project — no existing code.
+
+strict_tdd: false
+# No test runner detected yet — will enable when stack is chosen.
+
+testing:
+  runner:
+    command: ""
+    framework: ""
+  layers:
+    unit: { available: false, tool: "" }
+    integration: { available: false, tool: "" }
+    e2e: { available: false, tool: "" }
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter: { available: false, command: "" }
+    type_checker: { available: false, command: "" }
+    formatter: { available: false, command: "" }
+
+phases:
+  proposal:
+    prompt_template: "Create a change proposal for {change_name}"
+    artifact: proposal
+  spec:
+    depends_on: proposal
+    prompt_template: "Create specs for {change_name}"
+    artifact: spec
+  design:
+    depends_on: proposal
+    prompt_template: "Create technical design for {change_name}"
+    artifact: design
+  tasks:
+    depends_on: [spec, design]
+    prompt_template: "Break {change_name} into implementation tasks"
+    artifact: tasks
+  apply:
+    depends_on: tasks
+    prompt_template: "Implement tasks for {change_name}"
+    artifact: apply-progress
+  verify:
+    depends_on: apply
+    prompt_template: "Verify implementation of {change_name}"
+    artifact: verify-report
+  archive:
+    depends_on: verify
+    prompt_template: "Archive {change_name}"
+    artifact: archive-report
+
+session:
+  execution_mode: interactive
+  artifact_store: both
+  delivery_strategy: ask-always
+  review_budget_lines: 400

@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: chatbot_clinica
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d chatbot_clinica"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://app:${DB_PASSWORD:-devpassword}@postgres:5432/chatbot_clinica
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery-worker:
+    build:
+      context: ./backend
+      target: dev
+    volumes:
+      - ./backend:/app
+    command: celery -A tasks.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+      - postgres
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://app:${DB_PASSWORD:-devpassword}@postgres:5432/chatbot_clinica
+      REDIS_URL: redis://redis:6379/0
+
+  celery-beat:
+    build:
+      context: ./backend
+      target: dev
+    volumes:
+      - ./backend:/app
+    command: celery -A tasks.celery_app beat --loglevel=info
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+
+volumes:
+  pgdata:

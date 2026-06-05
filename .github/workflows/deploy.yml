@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: curl -fsSL https://railway.app/install.sh | sh
+
+      # ── Backend (FastAPI) ────────────────────────────────────────────
+      - name: Deploy Backend
+        run: railway up --service backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      # ── Frontend (React SPA) ─────────────────────────────────────────
+      - name: Deploy Frontend
+        run: railway up --service frontend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      # ── Celery Worker ────────────────────────────────────────────────
+      - name: Deploy Celery Worker
+        run: railway up --service celery-worker
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+# ── Required Secrets ─────────────────────────────────────────────────────
+#
+# The following secrets MUST be configured in your GitHub repository:
+#
+#   RAILWAY_TOKEN       — Railway service token (generate from Railway
+#                         dashboard → Settings → Tokens)
+#
+# Railway will use its own environment variables configured in the
+# Railway dashboard for each service (backend, frontend, celery-worker).
+# The `railway up` command deploys the current directory to the linked
+# Railway project. Make sure each service is linked before running:
+#
+#   railway link <project-id>
+#
+# See: https://docs.railway.app/guides/cli

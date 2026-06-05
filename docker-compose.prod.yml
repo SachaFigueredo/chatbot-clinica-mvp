@@ -1,0 +1,182 @@
+services:
+  # ── Database ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: chatbot_clinica
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD?Variable DB_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d chatbot_clinica"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ── Cache / Message Broker ───────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ── Evolution API (WhatsApp Gateway) ─────────────────────────────────
+  # Requires Evolution API self-hosted setup — see docs:
+  # https://doc.evolution-api.com/v2/get-started
+  # Uncomment and configure when ready:
+  #
+  # evolution-api:
+  #   image: atendai/evolution-api:v2.0.0
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - evolution-data:/evolution/instances
+  #   environment:
+  #     AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+  #     DATABASE_ENABLED: "true"
+  #     DATABASE_CONNECTION_URI: postgresql://app:${DB_PASSWORD}@postgres:5432/chatbot_clinica
+  #   restart: unless-stopped
+  #   networks:
+  #     - app-network
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # ── FastAPI Backend ───────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      SECRET_KEY: ${SECRET_KEY?Variable SECRET_KEY is required}
+      DATABASE_URL: postgresql+asyncpg://app:${DB_PASSWORD}@postgres:5432/chatbot_clinica
+      DATABASE_URL_SYNC: postgresql+psycopg2://app:${DB_PASSWORD}@postgres:5432/chatbot_clinica
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY?Variable OPENAI_API_KEY is required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      JWT_SECRET: ${JWT_SECRET?Variable JWT_SECRET is required}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+      FERNET_KEY: ${FERNET_KEY?Variable FERNET_KEY is required}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ── Celery Worker (background tasks) ─────────────────────────────────
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    command: celery -A tasks.celery_app worker --loglevel=info
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: postgresql+asyncpg://app:${DB_PASSWORD}@postgres:5432/chatbot_clinica
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: HS256
+      FERNET_KEY: ${FERNET_KEY}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ── Celery Beat (scheduled tasks) ────────────────────────────────────
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    command: celery -A tasks.celery_app beat --loglevel=info
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: postgresql+asyncpg://app:${DB_PASSWORD}@postgres:5432/chatbot_clinica
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: HS256
+      FERNET_KEY: ${FERNET_KEY}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ── Frontend (React SPA) ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge

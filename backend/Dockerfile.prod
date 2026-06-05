@@ -1,0 +1,43 @@
+# ---- Stage 1: Dependencies ----
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements/base.txt requirements/prod.txt /app/requirements/
+RUN pip install --no-cache-dir -r requirements/prod.txt
+
+# ---- Stage 2: Runtime ----
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system app && adduser --system --ingroup app app
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY alembic/ alembic/
+COPY alembic.ini .
+COPY app/ app/
+COPY tasks/ tasks/
+
+# Fix permissions
+RUN chown -R app:app /app
+
+USER app
+
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; exit(0 if urllib.request.urlopen('http://localhost:8000/health').status == 200 else 1)"
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
