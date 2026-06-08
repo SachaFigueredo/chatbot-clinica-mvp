@@ -53,6 +53,6 @@ ENV PYTHONPATH=/app
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD python -c "import urllib.request; exit(0 if urllib.request.urlopen('http://localhost:8000/health').status == 200 else 1)"
+  CMD python -c "import os; import urllib.request; port=os.environ.get('PORT', '8000'); exit(0 if urllib.request.urlopen(f'http://localhost:{port}/health').status == 200 else 1)"
 
 CMD ["./start.sh"]
