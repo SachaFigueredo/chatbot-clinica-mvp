@@ -1,0 +1,58 @@
+# ---- Stage 1: Dependencies ----
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements/base.txt backend/requirements/prod.txt /app/requirements/
+RUN pip install --no-cache-dir -r requirements/prod.txt
+
+# ---- Stage 2: Frontend build ----
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# ---- Stage 3: Runtime ----
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system app && adduser --system --ingroup app app
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY backend/migrations/ migrations/
+COPY backend/alembic.ini .
+COPY backend/app/ app/
+COPY backend/tasks/ tasks/
+COPY backend/start.sh .
+
+# Copy frontend build into app/frontend/ for FastAPI to serve
+COPY --from=frontend-builder /frontend/dist/ app/frontend/
+
+# Fix permissions
+RUN chmod +x start.sh && chown -R app:app /app
+
+USER app
+
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD python -c "import os; import urllib.request; port=os.environ.get('PORT', '8000'); exit(0 if urllib.request.urlopen(f'http://localhost:{port}/health').status == 200 else 1)"
+
+CMD ["./start.sh"]
