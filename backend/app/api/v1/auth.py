@@ -46,7 +46,7 @@ class MagicLinkVerifyRequest(BaseModel):
 
 @router.post("/register")
 async def register(body: RegisterRequest, db: SessionDep):
-    import re
+    import re, uuid
 
     # Create tenant if tenant_slug provided, or auto-create from clinic_name
     if body.tenant_slug:
@@ -67,13 +67,12 @@ async def register(body: RegisterRequest, db: SessionDep):
         )
         existing = result.scalar_one_or_none()
         if existing:
-            import uuid
             slug = f"{slug}-{uuid.uuid4().hex[:6]}"
 
         tenant = Tenant(
             name=clinic_name,
             slug=slug,
-            phone_number="",
+            phone_number=f"pending-{uuid.uuid4().hex[:8]}",
             status="active",
             plan="free",
         )
