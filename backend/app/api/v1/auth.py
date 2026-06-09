@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr
 
 from sqlalchemy import select
 
-from app.api.deps import SessionDep
+from app.api.deps import SessionDep, CurrentUser
 from app.domain.services.auth_service import AuthService
 from app.infrastructure.database.models.tenant import Tenant
 from app.infrastructure.database.models.user import User
@@ -114,6 +114,18 @@ async def register(body: RegisterRequest, db: SessionDep):
             "tenant_id": str(tenant.id),
             "is_active": user.is_active,
         },
+    }
+
+
+@router.get("/me")
+async def get_me(user: CurrentUser):
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "name": user.name,
+        "role": user.role.value if hasattr(user.role, 'value') else user.role,
+        "tenant_id": str(user.tenant_id),
+        "is_active": user.is_active,
     }
 
 
