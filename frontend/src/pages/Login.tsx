@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Stethoscope, Mail, Lock, Loader2, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { auth, onboarding } from '../services/api';
+import { auth } from '../services/api';
 
 export default function Login() {
   const { user, token, login, loading: authLoading } = useAuth();
@@ -19,10 +19,8 @@ export default function Login() {
   const [magicSubmitting, setMagicSubmitting] = useState(false);
   const [showMagic, setShowMagic] = useState(false);
 
-  // Already logged in — will redirect based on onboarding in App routing
+  // Already logged in — redirect to dashboard
   if (token && user && !authLoading) {
-    // We redirect to dashboard; the Onboarding component will redirect
-    // to /onboarding if needed. This avoids a second API call here.
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -32,9 +30,8 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login({ email, password });
-      // Check onboarding — redirect incomplete users to /onboarding
-      const onboardingStatus = await onboarding.status();
-      navigate(onboardingStatus.completed ? '/dashboard' : '/onboarding');
+      // Auth state updated → <Navigate> above will redirect to /dashboard
+      // Dashboard will handle onboarding redirection if needed
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     } finally {

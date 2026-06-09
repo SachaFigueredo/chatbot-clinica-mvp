@@ -1,11 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Stethoscope, Mail, Lock, User, Building2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Register() {
   const { user, token, loading: authLoading, register } = useAuth();
-  const navigate = useNavigate();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -16,9 +15,9 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Already logged in
+  // Already logged in — redirect to onboarding for new signups
   if (token && user && !authLoading) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/onboarding" replace />;
   }
 
   const validate = (): boolean => {
@@ -51,8 +50,7 @@ export default function Register() {
     setSubmitting(true);
     try {
       await register({ email, password, name, clinic_name: clinicName });
-      // New users always go to onboarding first
-      navigate('/onboarding');
+      // Auth state updated → <Navigate> above will redirect to /onboarding
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');
     } finally {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
   Clock,
@@ -7,7 +8,7 @@ import {
   XCircle,
   Loader2,
 } from 'lucide-react';
-import { dashboard, type DashboardStats } from '../services/api';
+import { dashboard, onboarding, type DashboardStats } from '../services/api';
 
 // ── Stat Card ──────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ const cardConfig: { key: keyof DashboardStats; label: string; icon: React.ReactN
 // ── Dashboard Page ─────────────────────────────────────────────
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +99,13 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       try {
+        // First check if onboarding is complete
+        const status = await onboarding.status();
+        if (!cancelled && !status.completed) {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
+
         const data = await dashboard.stats();
         if (!cancelled) setStats(data);
       } catch (err) {
@@ -117,7 +126,7 @@ export default function Dashboard() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [navigate]);
 
   // ── Loading state ──
   if (loading && !stats) {
