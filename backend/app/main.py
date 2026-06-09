@@ -4,7 +4,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.infrastructure.database.session import engine
@@ -46,7 +47,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Tenant middleware must run after CORS
 app.add_middleware(TenantMiddleware)
 
 # --- API Routers ---
@@ -66,21 +66,20 @@ async def health():
     return {"status": "ok", "version": "0.1.0"}
 
 
-# --- Frontend (static files) ---
+# --- Frontend (SPA) ---
 frontend_dist = Path(__file__).resolve().parent / "frontend"
+frontend_index = frontend_dist / "index.html"
+
+
+@app.exception_handler(StarletteHTTPException)
+async def spa_fallback(request, exc):
+    """Serve index.html for non-API 404s (SPA routing)."""
+    if exc.status_code == 404 and not request.url.path.startswith("/api/"):
+        if frontend_index.exists():
+            return FileResponse(str(frontend_index))
+    return JSONResponse({"detail": "Not found"}, status_code=exc.status_code)
+
 
 if frontend_dist.exists():
-    # Serve static assets (JS, CSS, images)
     app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
-
-    # SPA catch-all: serve index.html for all non-API routes
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        if full_path.startswith("api/") or full_path.startswith("health"):
-            return {"error": "not found"}, 404
-        index = frontend_dist / "index.html"
-        if index.exists():
-            return FileResponse(str(index))
-        return {"error": "not found"}, 404
-else:
-    print("Frontend dist not found, API-only mode")
+    print(f"Frontend assets mounted from {frontend_dist}")
