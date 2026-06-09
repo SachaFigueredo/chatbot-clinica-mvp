@@ -14,14 +14,18 @@ class TenantMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
-        # Skip tenant resolution for health, docs, and auth endpoints
         path = request.url.path
-        if path.startswith("/api/v1/auth/") or path in (
-            "/health",
-            "/docs",
-            "/openapi.json",
-            "/redoc",
-        ):
+
+        # Only enforce tenant for API routes (skip frontend, health, etc.)
+        if not path.startswith("/api/"):
+            request.state.tenant_id = None
+            request.state.tenant_slug = None
+            return await call_next(request)
+
+        # Skip tenant resolution for auth endpoints (register, login, etc.)
+        if path.startswith("/api/v1/auth/"):
+            request.state.tenant_id = None
+            request.state.tenant_slug = None
             return await call_next(request)
 
         tenant_slug = request.headers.get("X-Tenant-Slug")
