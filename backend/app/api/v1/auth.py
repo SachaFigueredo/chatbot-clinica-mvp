@@ -110,7 +110,7 @@ async def register(body: RegisterRequest, db: SessionDep):
             "id": str(user.id),
             "email": user.email,
             "name": user.name,
-            "role": user.role.value,
+            "role": user.role.value if hasattr(user.role, 'value') else user.role,
             "tenant_id": str(tenant.id),
             "is_active": user.is_active,
         },

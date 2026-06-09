@@ -20,21 +20,39 @@ import pytest
 class TestRegister:
     REGISTER_URL = "/api/v1/auth/register"
 
-    async def test_register_success(self, async_client, test_tenant):
-        """A valid registration returns a JWT and creates a user."""
+    async def test_register_success(self, async_client):
+        """A valid registration creates tenant+user and returns a JWT."""
         body = {
-            "tenant_slug": test_tenant.slug,
             "email": "newuser@test.com",
             "password": "secure-pass-123",
             "name": "New User",
+            "clinic_name": "Test Clinic",
         }
         resp = await async_client.post(self.REGISTER_URL, json=body)
         assert resp.status_code == 200, resp.text
         data = resp.json()
         assert "access_token" in data
-        assert "user_id" in data
-        assert "tenant_id" in data
-        assert data["tenant_id"] == str(test_tenant.id)
+        assert data["token_type"] == "bearer"
+        assert data["user"]["email"] == "newuser@test.com"
+        assert data["user"]["name"] == "New User"
+        assert data["user"]["role"] == "admin"
+        assert data["user"]["tenant_id"] is not None
+
+    async def test_register_with_tenant_slug(
+        self, async_client, test_tenant
+    ):
+        """Registering with an existing tenant_slug adds a recepcionista."""
+        body = {
+            "tenant_slug": test_tenant.slug,
+            "email": "staff@test.com",
+            "password": "secure-pass-123",
+            "name": "Staff User",
+        }
+        resp = await async_client.post(self.REGISTER_URL, json=body)
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["user"]["role"] == "recepcionista"
+        assert str(data["user"]["tenant_id"]) == str(test_tenant.id)
 
     async def test_register_duplicate_email(
         self, async_client, test_tenant, test_user
