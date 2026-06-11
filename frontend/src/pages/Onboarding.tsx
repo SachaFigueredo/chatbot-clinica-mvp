@@ -128,11 +128,13 @@ function StepWhatsApp({
 
 function StepGoogleCalendar({
   onComplete,
+  onSkip,
   loading,
   oauthCode,
   onOauthHandled,
 }: {
   onComplete: () => void;
+  onSkip: () => void;
   loading: boolean;
   oauthCode: string | null;
   onOauthHandled: () => void;
@@ -243,7 +245,14 @@ function StepGoogleCalendar({
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onSkip}
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <SkipForward size={16} />
+          Lo haré después
+        </button>
         <button
           onClick={onComplete}
           disabled={!calendarStatus?.connected}
@@ -825,6 +834,7 @@ export default function Onboarding() {
     2: (
       <StepGoogleCalendar
         onComplete={() => markComplete(2)}
+        onSkip={() => markComplete(2)}
         loading={submitting}
         oauthCode={oauthCode}
         onOauthHandled={handleOauthHandled}
