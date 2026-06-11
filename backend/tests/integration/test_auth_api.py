@@ -8,8 +8,14 @@ Routes under test:
 """
 
 from __future__ import annotations
+from datetime import datetime, timezone, timedelta
 
 import pytest
+
+from sqlalchemy import select
+
+from app.infrastructure.database.models.tenant import Tenant
+from app.domain.enums import TenantPlan
 
 
 # =========================================================================
@@ -39,9 +45,14 @@ class TestRegister:
         assert data["user"]["tenant_id"] is not None
 
     async def test_register_with_tenant_slug(
-        self, async_client, test_tenant
+        self, async_client, test_tenant, db_session
     ):
-        """Registering with an existing tenant_slug adds a recepcionista."""
+        """Registering with an existing tenant_slug adds a recepcionista.
+
+        The existing tenant's plan is NOT changed to trial.
+        """
+        original_plan = test_tenant.plan
+
         body = {
             "tenant_slug": test_tenant.slug,
             "email": "staff@test.com",
@@ -53,6 +64,15 @@ class TestRegister:
         data = resp.json()
         assert data["user"]["role"] == "recepcionista"
         assert str(data["user"]["tenant_id"]) == str(test_tenant.id)
+
+        # Verify existing tenant's plan is unchanged
+        result = await db_session.execute(
+            select(Tenant).where(Tenant.id == test_tenant.id)
+        )
+        tenant = result.scalar_one()
+        assert tenant.plan == original_plan, (
+            f"Existing tenant plan changed from {original_plan} to {tenant.plan}"
+        )
 
     async def test_register_duplicate_email(
         self, async_client, test_tenant, test_user
@@ -77,6 +97,48 @@ class TestRegister:
         }
         resp = await async_client.post(self.REGISTER_URL, json=body)
         assert resp.status_code == 404, resp.text
+
+    async def test_register_creates_trial_tenant(self, async_client, db_session):
+        """New tenant registration creates a trial tenant with trial_ends_at=now+7d."""
+        from datetime import timezone as tz_mod
+
+        body = {
+            "email": "trial@test.com",
+            "password": "secure-pass-123",
+            "name": "Trial User",
+            "clinic_name": "Trial Clinic",
+        }
+        resp = await async_client.post(self.REGISTER_URL, json=body)
+        assert resp.status_code == 200, resp.text
+
+        # Extract the created tenant_id from the response
+        tenant_id = resp.json()["user"]["tenant_id"]
+
+        # Fetch the tenant from DB
+        result = await db_session.execute(
+            select(Tenant).where(Tenant.id == tenant_id)
+        )
+        tenant = result.scalar_one_or_none()
+        assert tenant is not None
+
+        # Must be trial plan
+        assert tenant.plan == TenantPlan.trial, f"Expected trial, got {tenant.plan}"
+
+        # Must have trial_ends_at set ~7 days from now
+        assert tenant.trial_ends_at is not None
+        now = datetime.now(tz_mod.utc)
+        # SQLite may return naive datetime; make comparison robust
+        trial_end = tenant.trial_ends_at
+        if trial_end.tzinfo is None:
+            trial_end = trial_end.replace(tzinfo=tz_mod.utc)
+        expected_lower = now + timedelta(days=6, hours=23)
+        expected_upper = now + timedelta(days=7, hours=1)
+        assert expected_lower <= trial_end <= expected_upper, (
+            f"trial_ends_at {trial_end} not within 7d±1h of {now}"
+        )
+
+        # Must be active
+        assert tenant.status == "active"
 
 
 # =========================================================================

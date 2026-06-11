@@ -8,6 +8,7 @@ import {
   HelpCircle,
   Settings,
   UserPlus,
+  Shield,
   LogOut,
   Menu,
   X,
@@ -22,6 +23,7 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   adminOnly?: boolean;
+  superAdminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -32,6 +34,7 @@ const navItems: NavItem[] = [
   { to: '/faq', label: 'FAQ', icon: <HelpCircle size={20} />, adminOnly: true },
   { to: '/settings', label: 'Configuración', icon: <Settings size={20} />, adminOnly: true },
   { to: '/team', label: 'Equipo', icon: <UserPlus size={20} />, adminOnly: true },
+  { to: '/admin', label: 'Admin', icon: <Shield size={20} />, superAdminOnly: true },
 ];
 
 // ── Component ──────────────────────────────────────────────────
@@ -46,10 +49,13 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const isSuperAdmin = user?.role === 'super_admin';
 
   const visibleItems = navItems.filter(
-    (item) => !item.adminOnly || isAdmin,
+    (item) =>
+      (!item.adminOnly || isAdmin) &&
+      (!item.superAdminOnly || isSuperAdmin),
   );
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>

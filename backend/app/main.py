@@ -11,6 +11,9 @@ from app.config import settings
 from app.infrastructure.database.session import engine
 from app.infrastructure.database.session import Base
 from app.api.middleware.tenant import TenantMiddleware
+from fastapi import Depends
+
+from app.api.deps import get_subscription_guard
 from app.api.v1.appointments import router as appointments_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.calendar import router as calendar_router
@@ -20,6 +23,9 @@ from app.api.v1.faqs import router as faqs_router
 from app.api.v1.onboarding import router as onboarding_router
 from app.api.v1.clinic_config import router as clinic_config_router
 from app.api.v1.webhooks.evolution import router as evolution_webhook_router
+from app.api.v1.billing import router as billing_router
+from app.api.v1.webhooks.mercadopago import router as mercadopago_webhook_router
+from app.api.v1.admin import router as admin_router
 
 
 @asynccontextmanager
@@ -50,15 +56,23 @@ app.add_middleware(
 app.add_middleware(TenantMiddleware)
 
 # --- API Routers ---
-app.include_router(appointments_router, prefix="/api/v1")
+_guard = [Depends(get_subscription_guard)]
+
+# Protected routes (require active subscription/trial)
+app.include_router(appointments_router, prefix="/api/v1", dependencies=_guard)
+app.include_router(calendar_router, prefix="/api/v1", dependencies=_guard)
+app.include_router(conversations_router, prefix="/api/v1", dependencies=_guard)
+app.include_router(dashboard_router, prefix="/api/v1", dependencies=_guard)
+app.include_router(faqs_router, prefix="/api/v1", dependencies=_guard)
+app.include_router(onboarding_router, prefix="/api/v1", dependencies=_guard)
+app.include_router(clinic_config_router, prefix="/api/v1", dependencies=_guard)
+
+# Exempt routes (auth, billing, admin, webhooks — no subscription guard)
 app.include_router(auth_router, prefix="/api/v1")
-app.include_router(calendar_router, prefix="/api/v1")
-app.include_router(conversations_router, prefix="/api/v1")
-app.include_router(dashboard_router, prefix="/api/v1")
-app.include_router(faqs_router, prefix="/api/v1")
-app.include_router(onboarding_router, prefix="/api/v1")
-app.include_router(clinic_config_router, prefix="/api/v1")
+app.include_router(billing_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 app.include_router(evolution_webhook_router, prefix="/api/v1")
+app.include_router(mercadopago_webhook_router, prefix="/api/v1")
 
 
 @app.get("/health")

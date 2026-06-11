@@ -10,7 +10,9 @@ import AppointmentDetail from './pages/AppointmentDetail';
 import Conversations from './pages/Conversations';
 import ConversationDetail from './pages/ConversationDetail';
 import Settings from './pages/Settings';
+import Admin from './pages/Admin';
 import Onboarding from './pages/Onboarding';
+import SuperAdminRoute from './components/SuperAdminRoute';
 
 export default function App() {
   const { loading } = useAuth();
@@ -42,6 +44,11 @@ export default function App() {
           <Route path="/appointments/:id" element={<AppointmentDetail />} />
           <Route path="/conversations" element={<Conversations />} />
           <Route path="/conversations/:id" element={<ConversationDetail />} />
+
+          {/* Admin (super_admin only) */}
+          <Route element={<SuperAdminRoute />}>
+            <Route path="/admin" element={<Admin />} />
+          </Route>
 
           {/* Settings (with tabs) */}
           <Route path="/settings" element={<Settings />} />

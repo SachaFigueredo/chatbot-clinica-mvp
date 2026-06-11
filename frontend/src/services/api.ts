@@ -7,9 +7,12 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'recepcionista';
+  role: 'admin' | 'recepcionista' | 'super_admin';
   tenant_id: string;
   is_active: boolean;
+  plan?: string;
+  status?: string;
+  trial_ends_at?: string | null;
 }
 
 export interface LoginRequest {
@@ -503,5 +506,74 @@ export const onboarding = {
 
   faqTemplates(): Promise<FAQTemplatesResponse> {
     return request<FAQTemplatesResponse>('/onboarding/faq-templates');
+  },
+};
+
+// ── Billing types & service ────────────────────────────────────
+
+export interface BillingStatus {
+  plan: string;
+  status: string;
+  trial_ends_at: string | null;
+  days_remaining: number | null;
+  mp_preference_id: string | null;
+}
+
+export interface CheckoutResponse {
+  preference_id: string;
+  init_point: string;
+}
+
+export const billing = {
+  status(): Promise<BillingStatus> {
+    return request<BillingStatus>('/billing/status');
+  },
+
+  checkout(): Promise<CheckoutResponse> {
+    return request<CheckoutResponse>('/billing/checkout', { method: 'POST' });
+  },
+
+  cancel(): Promise<{ status: string }> {
+    return request<{ status: string }>('/billing/cancel', { method: 'POST' });
+  },
+};
+
+// ── Admin types & service ──────────────────────────────────────
+
+export interface TenantAdmin {
+  id: string;
+  name: string;
+  slug: string;
+  email: string;
+  plan: string;
+  status: string;
+  trial_ends_at: string | null;
+  created_at: string;
+}
+
+export interface AdminTenantsParams {
+  status?: string;
+  plan?: string;
+}
+
+export const admin = {
+  tenants(params?: AdminTenantsParams): Promise<TenantAdmin[]> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.plan) qs.set('plan', params.plan);
+    const query = qs.toString();
+    return request<TenantAdmin[]>(`/admin/tenants${query ? `?${query}` : ''}`);
+  },
+
+  suspend(id: string): Promise<{ status: string }> {
+    return request<{ status: string }>(`/admin/tenants/${id}/suspend`, { method: 'POST' });
+  },
+
+  activate(id: string): Promise<{ status: string; trial_ends_at?: string }> {
+    return request<{ status: string; trial_ends_at?: string }>(`/admin/tenants/${id}/activate`, { method: 'POST' });
+  },
+
+  markPaid(id: string): Promise<{ plan: string; status: string; message: string }> {
+    return request<{ plan: string; status: string; message: string }>(`/admin/tenants/${id}/mark-paid`, { method: 'POST' });
   },
 };

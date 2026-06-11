@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     # Celery
     celery_broker_url: str = "redis://localhost:6379/0"
 
+    # Mercado Pago
+    mp_access_token: Optional[str] = None
+    mp_webhook_secret: Optional[str] = None
+    mp_notification_url: Optional[str] = None
+
+    # Super admin seed
+    super_admin_email: Optional[str] = None
+    super_admin_password: Optional[str] = None
+
     # Encryption (Fernet)
     encryption_key: Optional[str] = None
 

@@ -6,6 +6,7 @@ import {
   Stethoscope,
   Calendar,
   Users,
+  CreditCard,
   CheckCircle,
   XCircle,
   Loader2,
@@ -15,6 +16,7 @@ import FAQs from './FAQs';
 import Doctors from './Doctors';
 import CalendarIntegration from './CalendarIntegration';
 import Team from './Team';
+import BillingSettings from './BillingSettings';
 import { calendar } from '../services/api';
 
 // ── Tab definition ─────────────────────────────────────────────
@@ -31,6 +33,7 @@ const tabs: Tab[] = [
   { id: 'medicos', label: 'Médicos', icon: <Stethoscope size={18} /> },
   { id: 'calendario', label: 'Calendario', icon: <Calendar size={18} /> },
   { id: 'equipo', label: 'Equipo', icon: <Users size={18} /> },
+  { id: 'facturacion', label: 'Facturación', icon: <CreditCard size={18} /> },
 ];
 
 // ── Notification ───────────────────────────────────────────────
@@ -162,6 +165,7 @@ export default function Settings() {
       {activeTab === 'medicos' && <Doctors onNotification={setNotification} />}
       {activeTab === 'calendario' && <CalendarIntegration onNotification={setNotification} />}
       {activeTab === 'equipo' && <Team onNotification={setNotification} />}
+      {activeTab === 'facturacion' && <BillingSettings onNotification={setNotification} />}
     </div>
   );
 }

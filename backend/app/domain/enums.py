@@ -33,6 +33,7 @@ class MessageOrigin(str, Enum):
 class UserRole(str, Enum):
     admin = "admin"
     recepcionista = "recepcionista"
+    super_admin = "super_admin"
 
 
 class TenantStatus(str, Enum):
@@ -45,3 +46,6 @@ class TenantPlan(str, Enum):
     basic = "basic"
     professional = "professional"
     premium = "premium"
+    trial = "trial"
+    subscription = "subscription"
+    cancelled = "cancelled"

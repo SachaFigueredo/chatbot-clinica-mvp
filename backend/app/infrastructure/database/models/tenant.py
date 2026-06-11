@@ -22,6 +22,18 @@ class Tenant(Base):
         String(20), default=TenantStatus.active
     )
     plan: Mapped[TenantPlan] = mapped_column(String(50), default=TenantPlan.basic)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    mercadopago_customer_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None
+    )
+    mercadopago_subscription_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None
+    )
+    suspended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

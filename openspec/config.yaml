@@ -1,27 +1,28 @@
 context: |
-  SaaS chatbot for general medicine clinics. Multi-tenant.
-  Handles appointment scheduling, patient FAQs, general inquiries.
-  Python + web framework (to be decided: FastAPI / Django).
-  Initial project — no existing code.
+  SaaS chatbot for LATAM clinics. Multi-tenant (FastAPI + PostgreSQL).
+  Frontend: React + Vite + Tailwind.
+  Integrations: OpenAI GPT-4o-mini, Evolution API (WhatsApp), Google Calendar.
+  Deployed on Render free tier.
+  Currently: web panel working (register, login, dashboard, appointments, patients, onboarding).
+  Missing: WhatsApp bot, AI, Google Calendar, Redis reminders, billing/subscriptions.
 
-strict_tdd: false
-# No test runner detected yet — will enable when stack is chosen.
+strict_tdd: true
 
 testing:
   runner:
-    command: ""
-    framework: ""
+    command: "python -m pytest"
+    framework: "pytest"
   layers:
-    unit: { available: false, tool: "" }
-    integration: { available: false, tool: "" }
+    unit: { available: true, tool: "pytest" }
+    integration: { available: true, tool: "pytest + httpx AsyncClient" }
     e2e: { available: false, tool: "" }
   coverage:
     available: false
     command: ""
   quality:
-    linter: { available: false, command: "" }
+    linter: { available: true, command: "ruff" }
     type_checker: { available: false, command: "" }
-    formatter: { available: false, command: "" }
+    formatter: { available: true, command: "ruff format" }
 
 phases:
   proposal:

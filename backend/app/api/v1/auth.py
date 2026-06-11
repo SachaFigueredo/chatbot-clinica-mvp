@@ -1,3 +1,5 @@
+from datetime import datetime, timezone, timedelta
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
@@ -7,7 +9,7 @@ from app.api.deps import SessionDep, CurrentUser
 from app.domain.services.auth_service import AuthService
 from app.infrastructure.database.models.tenant import Tenant
 from app.infrastructure.database.models.user import User
-from app.domain.enums import UserRole
+from app.domain.enums import UserRole, TenantPlan
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -74,7 +76,8 @@ async def register(body: RegisterRequest, db: SessionDep):
             slug=slug,
             phone_number=f"pending-{uuid.uuid4().hex[:8]}",
             status="active",
-            plan="free",
+            plan=TenantPlan.trial,
+            trial_ends_at=datetime.now(timezone.utc) + timedelta(days=7),
         )
         db.add(tenant)
         await db.flush()

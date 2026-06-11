@@ -21,6 +21,10 @@ from cryptography.fernet import Fernet  # noqa: E402
 
 os.environ["ENCRYPTION_KEY"] = Fernet.generate_key().decode()
 
+# Mercado Pago test credentials
+os.environ["MP_WEBHOOK_SECRET"] = "test-webhook-secret-for-testing"
+os.environ["MP_ACCESS_TOKEN"] = "test-mp-access-token"
+
 # =============================================================================
 # 2. Imports — now safe because env vars are set
 # =============================================================================

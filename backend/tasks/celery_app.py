@@ -49,4 +49,8 @@ celery_app.conf.beat_schedule = {
         "task": "tasks.reminders.send_reminder_2",
         "schedule": crontab(minute="*/30"),
     },
+    "check-trial-expiry": {
+        "task": "tasks.trial_expiry.check_trial_expiry",
+        "schedule": crontab(hour=3, minute=0),  # daily at 03:00 AM
+    },
 }
