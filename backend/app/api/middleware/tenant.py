@@ -8,9 +8,13 @@ from app.infrastructure.database.models.tenant import Tenant
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
-    """Extract tenant from X-Tenant-Slug header or subdomain.
+    """Extract tenant from X-Tenant-Slug header.
 
     The resolved tenant_id is available as request.state.tenant_id.
+
+    Note: Subdomain extraction is intentionally omitted for now.
+    When custom domains are added (e.g., clinic1.platform.com),
+    re-enable with proper host allowlist logic.
     """
 
     async def dispatch(self, request: Request, call_next):
@@ -29,13 +33,6 @@ class TenantMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         tenant_slug = request.headers.get("X-Tenant-Slug")
-
-        # Try subdomain extraction as fallback
-        if not tenant_slug:
-            host = request.headers.get("host", "")
-            parts = host.split(".")
-            if len(parts) >= 3:
-                tenant_slug = parts[0]
 
         if not tenant_slug:
             # No tenant slug — skip resolution. Auth-dependent endpoints
